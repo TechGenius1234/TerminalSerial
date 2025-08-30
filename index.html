@@ -5,14 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Serial Terminal</title>
   <style>
-    body { margin:0; height:100vh; background:#000; color:#0f0; font-family:monospace; display:flex; }
-    #term { flex:1; padding:10px; overflow:auto; white-space:pre-wrap; outline:none; }
+    body { margin:0; height:100vh; background:#000; color:#0f0; font-family:monospace; display:flex; justify-content:center; align-items:center; }
+    #term { flex:1; padding:10px; overflow:auto; white-space:pre-wrap; outline:none; background:#000; color:#0f0; }
+    #connectOverlay { position:absolute; inset:0; background:#000; display:flex; justify-content:center; align-items:center; }
+    #connectOverlay button { font-size:20px; padding:15px 30px; cursor:pointer; border:none; border-radius:8px; background:#111; color:#0f0; }
   </style>
 </head>
 <body>
   <div id="term" tabindex="0"></div>
+  <div id="connectOverlay"><button id="connectBtn">Connect Serial</button></div>
   <script>
     const term = document.getElementById('term');
+    const overlay = document.getElementById('connectOverlay');
+    const connectBtn = document.getElementById('connectBtn');
     let port, reader, writer;
     let keepReading = true;
 
@@ -43,6 +48,8 @@
         encoder.readable.pipeTo(port.writable);
         writer = encoder.writable.getWriter();
 
+        overlay.style.display = 'none';
+        term.focus();
         readLoop();
       } catch(e){
         appendLog("\n[Error] "+e.message+"\n");
@@ -61,7 +68,6 @@
       }
     }
 
-    // send characters typed directly
     term.addEventListener('keydown', async (e)=>{
       if(!writer) return;
       if(e.key.length === 1){
@@ -76,10 +82,8 @@
       }
     });
 
-    // auto ask on load
-    window.addEventListener('load', ()=>{
+    connectBtn.addEventListener('click', ()=>{
       connect();
-      term.focus();
     });
   </script>
 </body>
