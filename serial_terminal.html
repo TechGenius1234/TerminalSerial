@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Serial Terminal</title>
+  <style>
+    body { margin:0; height:100vh; background:#000; color:#0f0; font-family:monospace; display:flex; }
+    #term { flex:1; padding:10px; overflow:auto; white-space:pre-wrap; outline:none; }
+  </style>
+</head>
+<body>
+  <div id="term" tabindex="0"></div>
+  <script>
+    const term = document.getElementById('term');
+    let port, reader, writer;
+    let keepReading = true;
+
+    function appendLog(text){
+      term.textContent += text;
+      term.scrollTop = term.scrollHeight;
+    }
+
+    async function connect(){
+      if(!('serial' in navigator)){
+        alert('Web Serial API not supported. Use Chrome/Edge on desktop.');
+        return;
+      }
+
+      try{
+        port = await navigator.serial.requestPort();
+        let baud = prompt('Enter baud rate (e.g. 9600):','9600');
+        if(baud === null) return;
+        const baudNum = parseInt(baud,10) || 9600;
+
+        await port.open({ baudRate: baudNum });
+
+        const decoder = new TextDecoderStream();
+        port.readable.pipeTo(decoder.writable);
+        reader = decoder.readable.getReader();
+
+        const encoder = new TextEncoderStream();
+        encoder.readable.pipeTo(port.writable);
+        writer = encoder.writable.getWriter();
+
+        readLoop();
+      } catch(e){
+        appendLog("\n[Error] "+e.message+"\n");
+      }
+    }
+
+    async function readLoop(){
+      try{
+        while(keepReading){
+          const {value,done} = await reader.read();
+          if(done) break;
+          if(value) appendLog(value);
+        }
+      }catch(e){
+        appendLog("\n[Read error] "+e.message+"\n");
+      }
+    }
+
+    // send characters typed directly
+    term.addEventListener('keydown', async (e)=>{
+      if(!writer) return;
+      if(e.key.length === 1){
+        await writer.write(e.key);
+        e.preventDefault();
+      } else if(e.key === 'Enter'){
+        await writer.write("\n");
+        e.preventDefault();
+      } else if(e.key === 'Backspace'){
+        await writer.write("\x7f");
+        e.preventDefault();
+      }
+    });
+
+    // auto ask on load
+    window.addEventListener('load', ()=>{
+      connect();
+      term.focus();
+    });
+  </script>
+</body>
+</html>
